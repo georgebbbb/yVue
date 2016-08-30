@@ -1,10 +1,19 @@
+function VNode(tag, data, children, text) {
+  return {
+    tag: tag,
+    data: data,
+    children: children,
+    text: text
+  }
+}
+
 class Vue {
   constructor(options) {
     this.$options = options
     this._data = options.data
     Object.keys(options.data).forEach(key => this._proxy(key))
-    observer(options.data, this.$options.render)
-    options.render()
+    observer(options.data, this._render.bind(this))
+    this._render()
   }
   _proxy(key) {
     const self = this
@@ -15,9 +24,26 @@ class Vue {
         return self._data[key]
       },
       set: function proxySetter (val) {
-        self._data[key] = val
+        self._data.text = val
       }
     })
+  }
+  _render(){
+    const vnode = this.$options.render.call(this)
+
+    console.log(JSON.stringify(vnode))
+  }
+  __h__(tag, attr, children){
+    return VNode(tag, attr, children.map((child)=>{
+      if(typeof child === 'string'){
+        return VNode(undefined, undefined, undefined, child)
+      }else{
+        return child
+      }
+    }))
+  }
+  __toString__(val){
+    return val == null ? '' : typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val);
   }
 }
 
@@ -29,8 +55,9 @@ function defineReactive(obj, key, val, cb) {
   Object.defineProperty(obj, key, {
     enumerable: true,
     configurable: true,
-    get: ()=>{},
-    set:newVal=> {
+    get: ()=>{return val},
+    set: newVal => {
+      val = newVal
       cb()
     }
   })
@@ -39,13 +66,17 @@ function defineReactive(obj, key, val, cb) {
 var demo = new Vue({
   el: '#demo',
   data: {
-    text: 123,
+    text: "before",
   },
   render(){
-    console.log("我要render了")
+    return this.__h__('div', {}, [
+      this.__h__('span', {}, [this.__toString__(this.text)])
+    ])
   }
 })
 
+//<div><span>{{text}}</span></div>
+
  setTimeout(function(){
-   demo.text = 444
+   demo.text = "after"
  }, 3000)
