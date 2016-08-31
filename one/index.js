@@ -12,8 +12,8 @@ class Vue {
     this.$options = options
     this._data = options.data
     Object.keys(options.data).forEach(key => this._proxy(key))
-    observer(options.data, this._render.bind(this))
-    this._render()
+    observer(options.data)
+    const vnode = watch(this, this._render.bind(this), this._update)
   }
   _proxy(key) {
     const self = this
@@ -27,6 +27,9 @@ class Vue {
         self._data.text = val
       }
     })
+  }
+  _update(){
+    console.log("我需要更新");
   }
   _render(){
     const vnode = this.$options.render.call(this)
@@ -52,16 +55,43 @@ function observer(value, cb){
 }
 
 function defineReactive(obj, key, val, cb) {
+  const dep = new Dep()
   Object.defineProperty(obj, key, {
     enumerable: true,
     configurable: true,
-    get: ()=>{return val},
+    get: ()=>{
+      if(Dep.target){
+        dep.add(Dep.target)
+      }
+      return val
+    },
     set: newVal => {
+      if(newVal === val)
+        return
       val = newVal
-      cb()
+      dep.notify()
     }
   })
 }
+function watch(vm, exp, cb){
+  Dep.target = cb
+  return exp()
+}
+
+class Dep {
+  constructor() {
+    this.subs = []
+  }
+  add(cb) {
+    this.subs.push(cb)
+  }
+  notify() {
+    console.log(this.subs);
+    this.subs.forEach((cb) => cb())
+  }
+}
+Dep.target = null
+
 
 var demo = new Vue({
   el: '#demo',
